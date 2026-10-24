@@ -18,4 +18,14 @@ if [[ -z $upstream ]]; then
 fi
 
 echo -e "\e[32m\nUpdate Omarchy dev checkout\e[0m"
-git -C "$OMARCHY_PATH" pull --ff-only
+if git -C "$OMARCHY_PATH" pull --ff-only; then
+  exit 0
+fi
+# A local commit, a dirty tree, or an upstream that moved under this checkout
+# cannot fast-forward. Package updates still have to run; the checkout stays
+# where it is and the mismatch is reported.
+if git -C "$OMARCHY_PATH" rev-parse --verify --quiet '@{upstream}' >/dev/null; then
+  echo -e "\e[33mDev checkout was not fast-forwarded (${upstream}). Continuing with the local tree.\e[0m" >&2
+  exit 0
+fi
+exit 1
