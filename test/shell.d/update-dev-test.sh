@@ -31,6 +31,9 @@ case "$1" in
         [[ ${TEST_GIT_UPSTREAM:-origin/quattro} != "none" ]] || exit 1
         echo "${TEST_GIT_UPSTREAM:-origin/quattro}"
         ;;
+      --verify)
+        [[ ${TEST_GIT_UPSTREAM:-origin/quattro} != "none" ]] || exit 1
+        ;;
       *)
         exit 1
         ;;
@@ -38,6 +41,7 @@ case "$1" in
     ;;
   pull)
     [[ $2 == "--ff-only" ]]
+    [[ ${TEST_GIT_PULL_FAIL:-no} == "yes" ]] && exit 1
     ;;
   *)
     exit 1
@@ -63,6 +67,14 @@ run_dev_update "$checkout"
 grep -Fx -- "-C $checkout pull --ff-only" "$git_log" >/dev/null ||
   fail "dev checkout update pulls its upstream with fast-forward only" "$(cat "$git_log")"
 pass "dev checkout update pulls its configured upstream"
+
+: >"$git_log"
+if ! TEST_GIT_PULL_FAIL=yes run_dev_update "$checkout" >"$test_tmp/diverged.out" 2>"$test_tmp/diverged.err"; then
+  fail "a dev checkout that cannot fast-forward still lets the update continue" "$(cat "$test_tmp/diverged.err")"
+fi
+grep -F "was not fast-forwarded" "$test_tmp/diverged.err" >/dev/null ||
+  fail "a diverged dev checkout reports that the local tree is kept" "$(cat "$test_tmp/diverged.err")"
+pass "a dev checkout that cannot fast-forward does not abort the update"
 
 : >"$git_log"
 TEST_GIT_UPSTREAM=none run_dev_update "$checkout"
